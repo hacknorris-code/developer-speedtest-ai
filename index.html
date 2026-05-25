@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Developer Typing Test</title>
+<style>
+body { font-family: monospace; margin: 20px; }
+#game-area { display: none; }
+#result-area { display: none; }
+input { font-size: 1.2em; padding: 5px; width: 300px; }
+.word { font-size: 1.5em; margin-bottom: 20px; display: block; }
+.error { color: red; }
+</style>
+</head>
+<body>
+<div id="start-area">
+<input>Press Enter to start a 30-second typing test.</input>
+</div>
+<div id="game-area">
+<span id="timer">Time: 90</span><br>
+<span id="current-word" class="word"></span><br>
+<input type="text" id="input-field" autocomplete="off" autofocus>
+</div>
+<div id="result-area">
+<h2>Results</h2>
+<p>Time: <span id="final-time"></span> seconds</p>
+<p>Words Per Minute: <span id="wpm"></span></p>
+<p>Accuracy: <span id="accuracy"></span>%</p>
+<p>Total Typos: <span id="typos"></span></p>
+
+<div id=form>
+<p>Coding hours per day: <input type=number id=hours></p>
+<p>Problems solved per day: <input type=number id=problems></p>
+</div>
+<button onclick=parseForm()>RATE EFFICIENCY</button>
+<progress id=UIloader style=display:none;></progress>
+<div id=output></div>
+
+<button onclick="location.reload()">Restart</button>
+</div>
+
+<script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="./ai.js"></script>
+<script>
+const words = [
+"break","case","catch","class","const","continue","debugger","default","delete","do","else","export","extends","finally","for","function","if","instanceof","new","return","super","switch","this","throw","try","typeof","var","void","while","with","yield","await","async","let","static","get","set","null","true","false","undefined","nan","infinity", // js
+"none","as","assert","def","del","elif","except","from","global","import","in","is","lambda","nonlocal","not","and","or","pass","raise", // python
+"abstract","base","bool","byte","char","checked","decimal","delegate","double","enum","event","explicit","extern","fixed","float","foreach","goto","implicit","int","interface","internal","lock","long","namespace","null","object","operator","out","override","params","private","protected","public","readonly","ref","sbyte","sealed","short","sizeof","stackalloc","static","string","struct","unchecked","unsafe","ushort","using","virtual","void","volatile","where","when" // c#
+];
+let currentIndex = 0;
+let startTime = null;
+let timerInterval = null;
+let totalTyped = 0;
+let correctChars = 0;
+let typos = 0;
+let wordsTyped = 0;
+let gameActive = false;
+let timelen = 30;
+
+const startArea = document.getElementById('start-area');
+const gameArea = document.getElementById('game-area');
+const resultArea = document.getElementById('result-area');
+const currentWordEl = document.getElementById('current-word');
+const inputField = document.getElementById('input-field');
+const timerEl = document.getElementById('timer');
+const finalTimeEl = document.getElementById('final-time');
+const wpmEl = document.getElementById('wpm');
+const accuracyEl = document.getElementById('accuracy');
+const typosEl = document.getElementById('typos');
+
+let wpm = 0;
+let accuracy = 0;
+
+document.addEventListener('keydown', function(e) {
+    if (!gameActive && e.key === 'Enter') {
+        startGame();
+    }
+});
+
+inputField.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        checkWord();
+    }
+});
+
+function startGame() {
+    startArea.style.display = 'none';
+    gameArea.style.display = 'block';
+    gameActive = true;
+    startTime = Date.now();
+    loadNextWord();
+    inputField.focus();
+    
+    timerInterval = setInterval(function() {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = timelen - elapsed;
+        timerEl.textContent = 'Time: ' + remaining;
+        
+        if (remaining <= 0) {
+            endGame();
+        }
+    }, 1000);
+}
+
+function loadNextWord() {
+    currentIndex = Math.floor(Math.random() * words.length);
+    currentWordEl.textContent = words[currentIndex];
+    inputField.value = '';
+}
+
+function checkWord() {
+    const typed = inputField.value;
+    const target = words[currentIndex];
+    
+    if (typed === target) {
+        wordsTyped++;
+        correctChars += target.length;
+    } else {
+        for (let i = 0; i < typed.length; i++) {
+            if (i < target.length && typed[i] === target[i]) {
+                correctChars++;
+            } else {
+                typos++;
+            }
+        }
+        totalTyped += typed.length;
+    }
+    
+    loadNextWord();
+}
+
+function endGame() {
+    clearInterval(timerInterval);
+    gameActive = false;
+    gameArea.style.display = 'none';
+    resultArea.style.display = 'block';
+    
+    const elapsedMinutes = (Date.now() - startTime) / 1000 / 60;
+    wpm = Math.round(wordsTyped / elapsedMinutes);
+    const totalChars = correctChars + typos;
+    accuracy = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 0;
+    
+    finalTimeEl.textContent = timelen;
+    wpmEl.textContent = wpm;
+    accuracyEl.textContent = accuracy;
+    typosEl.textContent = typos;
+}
+async function parseForm(){
+  UIloader.style.display = "inline"
+  userdata = await train(wpm,accuracy,hours.value,problems.value)
+  UIloader.style.display = "none"
+  if(userdata <= 2.81){
+    output.innerText = userdata+" < 2.81";
+    output.style.color = "red"
+  }else if(userdata <10.2 && userdata >2.81){
+    output.innerText = "2.81 < "+userdata+" < 10.2";
+    output.style.color = "green"
+  }else if(userdata >= 10.2){
+    output.innerText = "10.2 < "+userdata;
+    output.style.color = "blue"
+  }else{
+    output.innerText = "there was an error. sad ;-; "
+  }
+  
+}
+</script>
+</body>
+</html>
